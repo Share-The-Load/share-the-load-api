@@ -1,6 +1,6 @@
 # Share the Load API
 
-##Usage
+## Usage
 
 Create a *run.sh* file in your home directory and include the following: 
 
@@ -15,7 +15,7 @@ export LOG_LEVEL="debug"
 npm start
 ```
 
-##Starting the api
+## Starting the api
 *sh run.sh*
 
 
