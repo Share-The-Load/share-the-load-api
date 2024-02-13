@@ -21,6 +21,9 @@ const config = {
     logging: {
         level: process.env.LOG_LEVEL
     },
+    jwt: {
+        hmac_secret: get_or_throw(process.env.JWT_HMAC_SECRET, 'JWT_HMAC_SECRET not defined')
+    },
 };
 
 export default config;

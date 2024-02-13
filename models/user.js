@@ -21,7 +21,7 @@ const model = function (dbConn, group) {
       updated_at: {
         type: Sequelize.DATE,
       },
-      encrypted_password: {
+      password: {
         type: Sequelize.STRING,
       },
       profile_picture: {
