@@ -45,17 +45,16 @@ if (!db_host || !db_user || !db_password || !db_database) {
 
 logger.debug(
   "Creating database connection to (" +
-    db_database +
-    ") at (" +
-    db_host +
-    ") as (" +
-    db_user +
-    ")"
+  db_database +
+  ") at (" +
+  db_host +
+  ") as (" +
+  db_user +
+  ")"
 );
 const Conn = new Sequelize(db_database, db_user, db_password, {
   host: db_host,
   dialect: "mysql",
-//   logging: logger.debug,
   define: {
     timestamps: false,
   },
@@ -67,5 +66,6 @@ const Group = GroupDefinition(Conn);
 const User = UserDefinition(Conn, Group);
 const Load = LoadDefinition(Conn, User, Group);
 const Preference = PreferenceDefinition(Conn, User);
+
 
 export default Conn;

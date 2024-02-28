@@ -49,9 +49,38 @@ export default function (app) {
             });
     });
 
+    app.post('/account/validate-token', async (req, res) => {
+        var token = req.body.token;
+        userService.validateAndDecodeToken(token)
+            .then(decodedToken => {
+                res.status(200).json(decodedToken);
+            }).catch(err => {
+                logger.error("Error validating token (" + token + "): " + err);
+                if (err.stack) {
+                    logger.error(err.stack);
+                }
+                res.status(400).send("Error");
+            });
+    });
+
+    app.post('/account/refresh-token', function (req, res) {
+        var refreshToken = req.body.refreshToken;
+        userService.validateAndGenerateRefreshedTokens(refreshToken)
+            .then(authResult => {
+                sendAuthData(res, authResult);
+                console.log(`Refreshed token for user ${authResult.user.username} (${authResult.user.user_id})`)
+            })
+            .catch(err => {
+                logger.error("Error refreshing token (" + refreshToken + "): " + err);
+                if (err.stack) {
+                    logger.error(err.stack);
+                }
+                res.status(403).send("Unauthorized");
+            });
+    });
+
 
     async function sendAuthData(res, authResult) {
-        console.log(`❗️❗️❗️ authRe`, authResult)
         res.status(200)
             .json({
                 user: {
