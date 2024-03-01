@@ -9,8 +9,26 @@ const model = function (dbConn) {
         primaryKey: true,
         autoIncrement: true,
       },
+      owner_id: {
+        type: Sequelize.INTEGER,
+      },
       name: {
         type: Sequelize.STRING,
+      },
+      passcode: {
+        type: Sequelize.STRING,
+      },
+      slogan: {
+        type: Sequelize.STRING,
+      },
+      avatar: {
+        type: Sequelize.STRING,
+      },
+      created_at: {
+        type: Sequelize.DATE,
+      },
+      updated_at: {
+        type: Sequelize.DATE,
       },
     },
     {
