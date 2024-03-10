@@ -17,9 +17,10 @@ import ProfileRoutes from './routes/profile.js';
 import HomeRoutes from './routes/home.js';
 import HealthRoutes from './routes/health.js';
 import AccountRoutes from './routes/account.js';
+import GroupRoutes from './routes/group.js';
 
 const app = express();
-const port = 3000;
+const port = 3006;
 
 const logger = log.createLogger("share-the-load-server");
 
@@ -91,9 +92,10 @@ DbConn.authenticate()
     HomeRoutes(app, DbConn);
     AccountRoutes(app);
     HealthRoutes(app);
+    GroupRoutes(app, DbConn);
 
     app.listen(port, () => {
-      console.log("Server running on port 3000");
+      console.log(`Server running on port ${port}`);
     });
   })
   .catch(function (err) {

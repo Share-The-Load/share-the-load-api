@@ -1,10 +1,9 @@
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import log from '../utils/log.js';
 import { Sequelize } from 'sequelize';
+import { checkPassword, hashPassword } from '../utils/passwordFunctions.js';
 
 const ACCESS_TOKEN_EXP_TIME_SECONDS = 86400; //Seconds = 24 Hours
-const BCRYPT_SALT_ROUNDS = 8;
 const REFRESH_TOKEN_EXP_TIME_DAYS = '180d'; //Days
 
 const logger = log.createLogger('sharetheload-services-user');
@@ -30,7 +29,7 @@ class UserService {
             throw new Error("User not found");
         }
 
-        const passwordMatch = await this.checkPassword(user.password, password);
+        const passwordMatch = await checkPassword(user.password, password);
         if (!passwordMatch) {
             throw new Error("Invalid password");
         }
@@ -41,7 +40,7 @@ class UserService {
     }
 
     async register(username, email, password) {
-        const hashedPassword = await this.hashPassword(password);
+        const hashedPassword = await hashPassword(password);
         const user = await this.dbConn.models.user.create({
             username: username.toLowerCase().trim(),
             email: email.toLowerCase().trim(),
