@@ -24,8 +24,8 @@ const model = function (dbConn, group) {
       password: {
         type: Sequelize.STRING,
       },
-      profile_picture: {
-        type: Sequelize.STRING,
+      avatar_id: {
+        type: Sequelize.INTEGER,
       },
       load_time: {
         type: Sequelize.DOUBLE,

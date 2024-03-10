@@ -123,13 +123,14 @@ class UserService {
         });
     }
 
-    hashPassword(password) {
-        return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-    }
-
-    // Returns a Promise wither the hash is value
-    checkPassword(hash, password) {
-        return bcrypt.compare(password, hash);
+    validateAndGenerateRefreshedTokens(rawRefreshToken) {
+        var _self = this;
+        return this.validateAndDecodeToken(rawRefreshToken)
+            .then(function (refreshTokenData) {
+                return _self.dbConn.models.user.findByPk(refreshTokenData.userId);
+            }).then(function (user) {
+                return _self.generateAuthData(user);
+            });
     }
 }
 
