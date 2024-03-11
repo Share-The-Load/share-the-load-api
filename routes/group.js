@@ -17,7 +17,7 @@ export default function (app, dbConn) {
                     [Op.like]: name + '%'
                 },
             },
-            attributes: ['group_id', 'name', 'slogan', 'passcode', 'owner_id'],
+            attributes: ['group_id', 'name', 'slogan', 'passcode', 'owner_id', 'avatar_id'],
             raw: true
         }
         );
@@ -129,6 +129,57 @@ export default function (app, dbConn) {
 
         //remove passcode from response
         await delete group.passcode;
+        res.status(200).json({ group });
+    });
+
+    app.get("/group-details/:id", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const groupId = req.params.id;
+        const group = await dbConn.models.group.findByPk(groupId, {
+            attributes: ['group_id', 'owner_id', 'name', 'slogan', 'created_at', 'avatar_id'],
+            raw: true
+        });
+
+        if (!group) {
+            logger.error("Group not found");
+            return res.status(404).send("Group not found");
+        }
+        const addNumberOfMembers = async (group) => {
+            const numberOfMembers = await dbConn.models.user.count({
+                where: {
+                    group_id: group.group_id
+                }
+            });
+            group.numberOfMembers = numberOfMembers;
+        }
+
+        const addOwner = async (group) => {
+            const owner = await dbConn.models.user.findByPk(group.owner_id, {
+                attributes: ['user_id', 'username'],
+                raw: true
+            });
+            group.ownerName = owner.username;
+        }
+
+        const addMembers = async (group) => {
+            const members = await dbConn.models.user.findAll({
+                where: {
+                    group_id: group.group_id
+                },
+                attributes: ['user_id', 'username', 'avatar_id'],
+                raw: true
+            });
+            const owner = members.find(member => member.user_id === group.owner_id);
+            owner.isOwner = true;
+            group.members = members;
+        }
+
+        await addNumberOfMembers(group);
+        await addOwner(group);
+        await addMembers(group);
+
         res.status(200).json({ group });
     });
 
