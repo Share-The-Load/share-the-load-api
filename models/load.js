@@ -15,6 +15,9 @@ const model = function (dbConn, user, group) {
       end_time: {
         type: Sequelize.DATE,
       },
+      load_type: {
+        type: Sequelize.STRING,
+      },
     },
     {
       freezeTableName: true,

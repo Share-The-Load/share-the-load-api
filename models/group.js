@@ -21,8 +21,8 @@ const model = function (dbConn) {
       slogan: {
         type: Sequelize.STRING,
       },
-      avatar: {
-        type: Sequelize.STRING,
+      avatar_id: {
+        type: Sequelize.INTEGER,
       },
       created_at: {
         type: Sequelize.DATE,

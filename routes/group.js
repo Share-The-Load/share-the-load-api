@@ -17,7 +17,7 @@ export default function (app, dbConn) {
                     [Op.like]: name + '%'
                 },
             },
-            attributes: ['group_id', 'name', 'slogan', 'passcode', 'owner_id'],
+            attributes: ['group_id', 'name', 'slogan', 'passcode', 'owner_id', 'avatar_id'],
             raw: true
         }
         );
@@ -111,7 +111,7 @@ export default function (app, dbConn) {
             return res.status(404).send("Group not found");
         }
         if (group.passcode) {
-            const passcodeMatch = await checkPassword(passcode, group.passcode);
+            const passcodeMatch = await checkPassword(group.passcode, passcode);
             if (!passcodeMatch) {
                 logger.error("Invalid passcode for group " + groupId);
                 return res.status(403).send("Invalid passcode");
@@ -132,4 +132,118 @@ export default function (app, dbConn) {
         res.status(200).json({ group });
     });
 
+    app.get("/group-details/:id", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const groupId = req.params.id;
+        const group = await dbConn.models.group.findByPk(groupId, {
+            attributes: ['group_id', 'owner_id', 'name', 'slogan', 'created_at', 'avatar_id', 'passcode'],
+            raw: true
+        });
+
+        if (!group) {
+            logger.error("Group not found");
+            return res.status(404).send("Group not found");
+        }
+        const addNumberOfMembers = async (group) => {
+            const numberOfMembers = await dbConn.models.user.count({
+                where: {
+                    group_id: group.group_id
+                }
+            });
+            group.numberOfMembers = numberOfMembers;
+        }
+
+        const addOwner = async (group) => {
+            const owner = await dbConn.models.user.findByPk(group.owner_id, {
+                attributes: ['user_id', 'username'],
+                raw: true
+            });
+            group.ownerName = owner.username;
+        }
+
+        const addMembers = async (group) => {
+            const members = await dbConn.models.user.findAll({
+                where: {
+                    group_id: group.group_id
+                },
+                attributes: ['user_id', 'username', 'avatar_id'],
+                raw: true
+            });
+            const owner = members.find(member => member.user_id === group.owner_id);
+            owner.isOwner = true;
+            for (const member of members) {
+                const totalLoads = await dbConn.models.load.count({
+                    where: {
+                        user_id: member.user_id,
+                    },
+                });
+                member.loads = totalLoads;
+            }
+            group.members = members;
+        }
+
+        const addTotalLoads = async (group) => {
+            const totalLoads = await dbConn.models.load.count({
+                where: {
+                    group_id: group.group_id,
+                },
+            });
+            group.totalLoads = totalLoads;
+        }
+
+        await addNumberOfMembers(group);
+        await addOwner(group);
+        await addMembers(group);
+        await addTotalLoads(group);
+
+        //remove passcode from response and add a boolean to indicate if there is a passcode
+        group.hasPasscode = group.passcode ? true : false;
+        delete group.passcode;
+
+        res.status(200).json({ group });
+    });
+
+    app.post("/leave-group", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const userId = req.auth.userId;
+        const user = await dbConn.models.user.findByPk(userId);
+        user.group_id = null;
+        await user.save();
+        logger.info("User " + userId + " left group");
+        res.status(200).json({ status: "success" });
+    });
+
+    app.post("/remove-member", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const ownerId = req.auth.userId;
+
+        const group = await dbConn.models.group.findOne({
+            where: {
+                owner_id: ownerId
+            }
+        });
+        if (!group) {
+            logger.error("Group not found");
+            return res.status(404).send("Group not found");
+        }
+        const { memberId } = req.body;
+        const member = await dbConn.models.user.findByPk(memberId);
+
+        member.group_id = null;
+        await member.save();
+        logger.info("User " + memberId + " removed from group " + group.group_id);
+        res.status(200).json({ status: "success" });
+    })
+
+    app.get("/get-slogan", async (req, res) => {
+        const randomSlogan = slogans[Math.floor(Math.random() * slogans.length)];
+        logger.info("Grabbed new Slogan: " + randomSlogan);
+        res.status(200).json({ slogan: randomSlogan });
+    })
 }
