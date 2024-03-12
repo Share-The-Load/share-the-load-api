@@ -121,6 +121,16 @@ class UserService {
             });
         });
     }
+
+    validateAndGenerateRefreshedTokens(rawRefreshToken) {
+        var _self = this;
+        return this.validateAndDecodeToken(rawRefreshToken)
+            .then(function (refreshTokenData) {
+                return _self.dbConn.models.user.findByPk(refreshTokenData.userId);
+            }).then(function (user) {
+                return _self.generateAuthData(user);
+            });
+    }
 }
 
 export default UserService;

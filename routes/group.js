@@ -2,8 +2,9 @@ import { Op } from "sequelize";
 import slogans from "../constants/slogans.js";
 import { hashPassword, checkPassword } from "../utils/passwordFunctions.js";
 import log from "../utils/log.js";
+const logger = log.createLogger('sharetheload-routes-group');
+
 export default function (app, dbConn) {
-    const logger = log.createLogger('sharetheload-routes-group');
 
     app.get("/groups/:name", async (req, res) => {
         if (!req.auth) {
