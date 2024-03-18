@@ -14,7 +14,6 @@ import UserService from "./services/user.js";
 
 //Routes
 import ProfileRoutes from './routes/profile.js';
-import HomeRoutes from './routes/home.js';
 import HealthRoutes from './routes/health.js';
 import AccountRoutes from './routes/account.js';
 import GroupRoutes from './routes/group.js';
@@ -89,7 +88,6 @@ DbConn.authenticate()
 
 
     ProfileRoutes(app, DbConn);
-    HomeRoutes(app, DbConn);
     AccountRoutes(app);
     HealthRoutes(app);
     GroupRoutes(app, DbConn);

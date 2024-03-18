@@ -2,7 +2,10 @@ import { Op } from "sequelize";
 import slogans from "../constants/slogans.js";
 import { hashPassword, checkPassword } from "../utils/passwordFunctions.js";
 import log from "../utils/log.js";
+import moment from "moment";
 const logger = log.createLogger('sharetheload-routes-group');
+
+const LOAD_DAYS = 6;
 
 export default function (app, dbConn) {
 
@@ -246,4 +249,59 @@ export default function (app, dbConn) {
         logger.info("Grabbed new Slogan: " + randomSlogan);
         res.status(200).json({ slogan: randomSlogan });
     })
+
+    app.get("/group-loads", async (req, res) => {
+        try {
+            if (!req.auth) {
+                return res.status(401).send("Unauthorized");
+            }
+            const userId = req.auth.userId;
+            const profile = await dbConn.models.user.findOne({
+                where: {
+                    user_id: userId,
+                },
+            });
+            const groupId = profile.group_id;
+            const loads = await dbConn.models.load.findAll({
+                where: {
+                    group_id: groupId,
+                    end_time: {
+                        [Op.gte]: new Date(),
+                    },
+                },
+                include: [
+                    { model: dbConn.models.user }
+                ]
+            });
+
+            const formattedLoads = loads.map(load => {
+                return {
+                    load_id: load.load_id,
+                    start_time: load.start_time,
+                    end_time: load.end_time,
+                    load_type: load.load_type,
+                    loadMember: {
+                        user_id: load.user.user_id,
+                        username: load.user.username,
+                        avatar_id: load.user.avatar_id
+                    }
+                }
+            });
+            const loadDays = [];
+            for (let i = 0; i < LOAD_DAYS; i++) {
+                const day = moment().add(i, 'days').format("ddd, MMM Do");
+                loadDays.push({ day, loads: [] });
+            }
+            formattedLoads.forEach(load => {
+                const foundDay = loadDays.find(day => day.day === moment(load.start_time).format("ddd, MMM Do"))
+                if (foundDay) {
+                    foundDay.loads.push(load);
+                }
+            });
+            res.send({ days: loadDays });
+        } catch (error) {
+            logger.error(error);
+            res.status(400).json({ status: "error" });
+        }
+    });
 }
