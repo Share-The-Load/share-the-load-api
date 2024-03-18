@@ -5,6 +5,8 @@ import log from "../utils/log.js";
 import moment from "moment";
 const logger = log.createLogger('sharetheload-routes-group');
 
+const LOAD_DAYS = 6;
+
 export default function (app, dbConn) {
 
     app.get("/groups/:name", async (req, res) => {
@@ -286,7 +288,7 @@ export default function (app, dbConn) {
                 }
             });
             const loadDays = [];
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < LOAD_DAYS; i++) {
                 const day = moment().add(i, 'days').format("ddd, MMM Do");
                 loadDays.push({ day, loads: [] });
             }
