@@ -11,12 +11,14 @@ import config from "./utils/config.js";
 
 //Services
 import UserService from "./services/user.js";
+import LoadService from "./services/load.js";
 
 //Routes
 import ProfileRoutes from './routes/profile.js';
 import HealthRoutes from './routes/health.js';
 import AccountRoutes from './routes/account.js';
 import GroupRoutes from './routes/group.js';
+import LoadRoutes from './routes/load.js';
 
 const app = express();
 const port = 3006;
@@ -56,6 +58,7 @@ DbConn.authenticate()
     app.ctx.config = config;
 
     app.ctx.userService = new UserService(DbConn, config.jwt.hmac_secret);
+    app.ctx.loadService = new LoadService(DbConn);
 
     app.use(cors());
     app.use(loggingMiddleware);
@@ -91,6 +94,7 @@ DbConn.authenticate()
     AccountRoutes(app);
     HealthRoutes(app);
     GroupRoutes(app, DbConn);
+    LoadRoutes(app, DbConn);
 
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
