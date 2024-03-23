@@ -11,7 +11,7 @@ export default function (app, dbConn) {
                 return res.status(401).send("Unauthorized");
             }
             const userId = req.auth.userId;
-            const loads = req.body.loads.map(load => load.loadType);
+            const loads = req.body.loads.map(load => load.type);
             const urgent = req.body.urgent;
 
             logger.info(`Scheduling loads for user ${userId}: ${loads}`);
