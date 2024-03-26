@@ -41,10 +41,12 @@ class UserService {
 
     async register(username, email, password) {
         const hashedPassword = await hashPassword(password);
+        const randomAvatarId = Math.floor(Math.random() * 10) + 1;
         const user = await this.dbConn.models.user.create({
             username: username.toLowerCase().trim(),
             email: email.toLowerCase().trim(),
-            password: hashedPassword
+            password: hashedPassword,
+            avatar_id: randomAvatarId
         });
 
         const authData = await this.generateAuthData(user);
