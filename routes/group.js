@@ -73,12 +73,15 @@ export default function (app, dbConn) {
         const hashedPasscode = await hashPassword(passcode);
 
         const randomSlogan = slogans[Math.floor(Math.random() * slogans.length)];
+        const randomAvatar = Math.floor(Math.random() * 6) + 1;
 
         const group = await dbConn.models.group.create({
             name,
             passcode: hashedPasscode,
             slogan: randomSlogan,
-            owner_id: ownerId
+            owner_id: ownerId,
+            avatar_id: randomAvatar
+
         });
         const updateUser = await dbConn.models.user.update({
             group_id: group.group_id
