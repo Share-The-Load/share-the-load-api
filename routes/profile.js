@@ -1,5 +1,6 @@
 import log from "../utils/log.js";
 import moment from "moment";
+import { hashPassword } from "../utils/passwordFunctions.js";
 const logger = log.createLogger("share-the-load-routes-profile");
 
 export default function (app, dbConn) {
@@ -92,6 +93,30 @@ export default function (app, dbConn) {
     preference.start_time = start_time;
     preference.end_time = end_time;
     await preference.save();
+
+    res.status(200).json({ status: "success" });
+  })
+
+  app.post("/edit-profile", async (req, res) => {
+    if (!req.auth) {
+      return res.status(401).send("Unauthorized");
+    }
+    const userId = req.auth.userId;
+    const { email, avatar, password } = req.body;
+
+    const user = await dbConn.models.user.findByPk(userId);
+
+    if (password) {
+      const hashedPassword = await hashPassword(password);
+      user.password = hashedPassword;
+    }
+
+    user.email = email;
+    user.avatar_id = avatar;
+
+    await user.save();
+
+    logger.info(`Updated profile for user ${userId}`);
 
     res.status(200).json({ status: "success" });
   })

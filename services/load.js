@@ -59,6 +59,20 @@ class LoadService {
 
     }
 
+    async deleteLoad(userId, loadId) {
+        const load = await this.dbConn.models.load.findOne({
+            where: {
+                load_id: loadId,
+            },
+        });
+
+        if (load.user_id !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        await load.destroy();
+    }
+
     findTime(daysAhead, preferences, loadTime, findAllFutureGroupLoads) {
         const day = moment().add(daysAhead, 'd').format('ddd');
         const preference = preferences.find(p => p.day === day);
