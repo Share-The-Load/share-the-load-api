@@ -55,6 +55,9 @@ logger.debug(
   db_host +
   ") as (" +
   db_user +
+  ")" +
+  " on port (" +
+  db_port +
   ")"
 );
 const Conn = new Sequelize(db_database, db_user, db_password, {
