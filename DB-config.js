@@ -21,6 +21,7 @@ const db_host = config.db.host;
 const db_user = config.db.username;
 const db_password = config.db.password;
 const db_database = config.db.database;
+const db_port = config.db.port;
 
 if (!db_host) {
   logger.error("Missing database host, make sure MYSQL_HOST is set\n");
@@ -36,6 +37,10 @@ if (!db_password) {
 
 if (!db_database) {
   logger.error("Missing database name, make sure MYSQL_DATABASE is set\n");
+}
+
+if (!db_port) {
+  logger.error("Missing database port, make sure MYSQL_PORT is set\n");
 }
 
 if (!db_host || !db_user || !db_password || !db_database) {
@@ -55,6 +60,7 @@ logger.debug(
 const Conn = new Sequelize(db_database, db_user, db_password, {
   host: db_host,
   dialect: "mysql",
+  port: db_port,
   define: {
     timestamps: false,
   },
