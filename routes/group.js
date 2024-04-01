@@ -328,6 +328,9 @@ export default function (app, dbConn) {
                 const foundDay = loadDays.find(day => day.day === moment(load.start_time).format("ddd, MMM Do"))
                 if (foundDay) {
                     foundDay.loads.push(load);
+                    foundDay.loads.sort((a, b) => {
+                        return new Date(a.start_time) - new Date(b.start_time);
+                    });
                 }
             });
             res.send({ days: loadDays });

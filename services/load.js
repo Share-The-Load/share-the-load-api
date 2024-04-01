@@ -104,6 +104,10 @@ class LoadService {
                 logger.info('Cant schedule after end of preference', end_time, endTime)
                 continue;
             }
+            if (start_time.isBefore(moment())) {
+                logger.info('Cant schedule in the past', start_time)
+                continue;
+            }
             logger.info(`Block available`, start_time, end_time)
             return { start_time, end_time };
         }
