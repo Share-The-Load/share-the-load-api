@@ -59,6 +59,20 @@ class LoadService {
 
     }
 
+    async deleteLoad(userId, loadId) {
+        const load = await this.dbConn.models.load.findOne({
+            where: {
+                load_id: loadId,
+            },
+        });
+
+        if (load.user_id !== userId) {
+            throw new Error("Unauthorized");
+        }
+
+        await load.destroy();
+    }
+
     findTime(daysAhead, preferences, loadTime, findAllFutureGroupLoads) {
         const day = moment().add(daysAhead, 'd').format('ddd');
         const preference = preferences.find(p => p.day === day);
@@ -88,6 +102,10 @@ class LoadService {
             //check if the end time is after the end of the preference
             if (end_time.isAfter(endTime)) {
                 logger.info('Cant schedule after end of preference', end_time, endTime)
+                continue;
+            }
+            if (start_time.isBefore(moment())) {
+                logger.info('Cant schedule in the past', start_time)
                 continue;
             }
             logger.info(`Block available`, start_time, end_time)

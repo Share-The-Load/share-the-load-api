@@ -24,4 +24,23 @@ export default function (app, dbConn) {
             res.status(400).json({ status: "error" });
         }
     });
+
+    app.post("/delete-load", async (req, res) => {
+        try {
+            if (!req.auth) {
+                return res.status(401).send("Unauthorized");
+            }
+            const userId = req.auth.userId;
+            const loadId = req.body.loadId;
+
+            logger.info(`Deleting load ${loadId} for user ${userId}`);
+
+            await loadService.deleteLoad(userId, loadId);
+
+            res.status(200).json({ status: "success" });
+        } catch (error) {
+            logger.error(error);
+            res.status(400).json({ status: "error" });
+        }
+    });
 }

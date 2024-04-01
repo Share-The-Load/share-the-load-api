@@ -217,6 +217,34 @@ export default function (app, dbConn) {
         }
         const userId = req.auth.userId;
         const user = await dbConn.models.user.findByPk(userId);
+
+        const group = await dbConn.models.group.findByPk(user.group_id);
+        if (!group) {
+            logger.error("User not in a group");
+            return res.status(404).send("User not in a group");
+        }
+
+        const groupMembers = await dbConn.models.user.findAll({
+            where: {
+                group_id: group.group_id
+            }
+        });
+
+        if (groupMembers.length === 1) {
+            //delete group
+            logger.info("Group " + group.group_id + " deleted");
+            await group.destroy();
+        }
+
+        //user is the owner. need to transfer ownership
+        if (group.owner_id === userId) {
+            logger.info("User " + userId + " left group. Transferring ownership");
+            const newOwner = groupMembers.find(member => member.user_id !== userId);
+            group.owner_id = newOwner.user_id;
+            await group.save();
+        }
+
+
         user.group_id = null;
         await user.save();
         logger.info("User " + userId + " left group");
@@ -254,6 +282,7 @@ export default function (app, dbConn) {
     })
 
     app.get("/group-loads", async (req, res) => {
+        console.log(`❗️❗️❗️ req`, req.auth)
         try {
             if (!req.auth) {
                 return res.status(401).send("Unauthorized");
@@ -299,6 +328,9 @@ export default function (app, dbConn) {
                 const foundDay = loadDays.find(day => day.day === moment(load.start_time).format("ddd, MMM Do"))
                 if (foundDay) {
                     foundDay.loads.push(load);
+                    foundDay.loads.sort((a, b) => {
+                        return new Date(a.start_time) - new Date(b.start_time);
+                    });
                 }
             });
             res.send({ days: loadDays });
@@ -306,5 +338,67 @@ export default function (app, dbConn) {
             logger.error(error);
             res.status(400).json({ status: "error" });
         }
+    });
+
+    app.post("/edit-group", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const userId = req.auth.userId;
+        const { name, slogan, avatar_id, passcode } = req.body;
+
+        const user = await dbConn.models.user.findByPk(userId);
+
+        const group = await dbConn.models.group.findOne({
+            where: {
+                group_id: user.group_id
+            }
+        });
+
+        if (group.owner_id !== userId) {
+            logger.error("Not the owner of the group. Can't edit");
+            return res.status(401).send("Unauthorized");
+        }
+
+        if (passcode) {
+            const hashedPasscode = await hashPassword(passcode);
+            group.passcode = hashedPasscode;
+        }
+
+        group.name = name;
+        group.slogan = slogan;
+        group.avatar_id = avatar_id;
+
+        await group.save();
+
+        res.status(200).json({ status: "success" });
+    });
+
+    app.post("/remove-passcode", async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+        const userId = req.auth.userId;
+
+        const user = await dbConn.models.user.findByPk(userId);
+
+        const group = await dbConn.models.group.findOne({
+            where: {
+                group_id: user.group_id
+            }
+        });
+
+        if (group.owner_id !== userId) {
+            logger.error("Not the owner of the group. Can't edit");
+            return res.status(401).send("Unauthorized");
+        }
+
+        group.passcode = null;
+
+        await group.save();
+
+        logger.info("Passcode removed from group " + group.group_id);
+
+        res.status(200).json({ status: "success" });
     });
 }
