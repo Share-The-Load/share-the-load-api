@@ -12,6 +12,7 @@ import config from "./utils/config.js";
 //Services
 import UserService from "./services/user.js";
 import LoadService from "./services/load.js";
+import EmailService from "./services/email.js";
 
 //Routes
 import ProfileRoutes from './routes/profile.js';
@@ -47,17 +48,27 @@ logger.info("GOING TO CONNECT DB");
 
 DbConn.authenticate()
   .then(function () {
-    //TODO: Remove this since it will conflict with migrations
     return DbConn.sync();
   })
   .then(function () {
     logger.debug("Connection has been established successfully.");
 
+    const nodemailerConfig = {
+      host: config.email.smtp.host,
+      port: config.email.smtp.port,
+      secure: false, //This means it will use STARTTLS of available
+      auth: {
+        user: config.email.smtp.username,
+        pass: config.email.smtp.password
+      }
+    };
+
     app.ctx = {};
     app.ctx.dbConn = DbConn;
     app.ctx.config = config;
 
-    app.ctx.userService = new UserService(DbConn, config.jwt.hmac_secret);
+    app.ctx.emailService = new EmailService(config.email.from, nodemailerConfig, 'email-templates');
+    app.ctx.userService = new UserService(DbConn, config.jwt.hmac_secret, app.ctx.emailService);
     app.ctx.loadService = new LoadService(DbConn);
 
     app.use(cors());

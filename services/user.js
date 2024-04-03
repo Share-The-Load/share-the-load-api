@@ -11,9 +11,10 @@ const logger = log.createLogger('sharetheload-services-user');
 const Op = Sequelize.Op;
 
 class UserService {
-    constructor(dbConn, hmacSecret) {
+    constructor(dbConn, hmacSecret, emailService) {
         this.dbConn = dbConn;
         this.hmacSecret = hmacSecret;
+        this.emailService = emailService;
     }
 
     async login(username, password) {
@@ -22,7 +23,6 @@ class UserService {
                 [Op.or]: [{ username: username.toLowerCase().trim() }, { email: username.toLowerCase().trim() }]
             },
             raw: true
-
         });
 
         if (!user) {
@@ -75,6 +75,56 @@ class UserService {
         }
         return false;
 
+    }
+
+    async sendResetPasswordEmail(emailUsername) {
+        const user = await this.dbConn.models.user.findOne({
+            where: {
+                [Op.or]: [{ username: emailUsername.toLowerCase().trim() }, { email: emailUsername.toLowerCase().trim() }]
+            },
+        });
+        if (!user) {
+            throw new Error("Could not find user with email address: " + emailUsername);
+        }
+
+        const temp8CharPassword = Math.random().toString(36).slice(-8);
+
+        const hashedPassword = await hashPassword(temp8CharPassword);
+
+        user.password = hashedPassword;
+        await user.save();
+
+        logger.debug("Sending password reset email to " + user.email);
+
+        return await this.emailService.sendMail(
+            user.email,
+            "Password reset for Share The Load",
+            "password_reset",
+            {
+                temp_password: temp8CharPassword,
+            }
+        );
+    }
+
+    async deleteAccount(userId) {
+        //TODO: Implement this
+        // const user = await this.dbConn.models.user.findByPk(userId);
+        // if (!user) {
+        //     throw new Error("User not found");
+        // }
+
+        // await user.destroy();
+
+        logger.debug("Sending delete account email to " + userId);
+
+        const email = await this.emailService.sendMail(
+            'brettstrouse@gmail.com',
+            "Delete Account",
+            "general_notification",
+            {
+                userId: userId,
+            }
+        );
     }
 
     generateAuthData(user) {

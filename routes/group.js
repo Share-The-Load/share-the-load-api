@@ -282,7 +282,6 @@ export default function (app, dbConn) {
     })
 
     app.get("/group-loads", async (req, res) => {
-        console.log(`❗️❗️❗️ req`, req.auth)
         try {
             if (!req.auth) {
                 return res.status(401).send("Unauthorized");

@@ -49,6 +49,42 @@ export default function (app) {
             });
     });
 
+    app.post('/account/forgot-password', async (req, res) => {
+        const { emailUsername } = req.body;
+        userService.sendResetPasswordEmail(emailUsername)
+            .then(() => {
+                res.status(200).send("Email sent");
+            })
+            .catch(err => {
+                logger.error("Error sending password reset email to " + emailUsername + ": " + err);
+                if (err.stack) {
+                    logger.error(err.stack);
+                }
+                res.status(400).send("Error sending email");
+            });
+    })
+
+    app.post('/account/delete-account', async (req, res) => {
+        if (!req.auth) {
+            return res.status(401).send("Unauthorized");
+        }
+
+        //TODO: Implement delete account
+        const { userId } = req.auth;
+
+        userService.deleteAccount(userId)
+            .then(() => {
+                res.status(200).send("Account deleted");
+            })
+            .catch(err => {
+                logger.error("Error deleting account for user " + userId + ": " + err);
+                if (err.stack) {
+                    logger.error(err.stack);
+                }
+                res.status(400).send("Error deleting account");
+            });
+    })
+
     app.post('/account/validate-token', async (req, res) => {
         var token = req.body.token;
         userService.validateAndDecodeToken(token)
@@ -68,7 +104,7 @@ export default function (app) {
         userService.validateAndGenerateRefreshedTokens(refreshToken)
             .then(authResult => {
                 sendAuthData(res, authResult);
-                console.log(`Refreshed token for user ${authResult.user.username} (${authResult.user.user_id})`)
+                logger.debug(`Refreshed token for user ${authResult.user.username} (${authResult.user.user_id})`)
             })
             .catch(err => {
                 logger.error("Error refreshing token (" + refreshToken + "): " + err);
