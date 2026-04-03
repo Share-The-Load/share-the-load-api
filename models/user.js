@@ -30,6 +30,10 @@ const model = function (dbConn, group) {
       load_time: {
         type: Sequelize.DOUBLE,
       },
+      onboarding_complete: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+      },
     },
     {
       freezeTableName: true,

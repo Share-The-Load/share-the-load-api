@@ -1,10 +1,11 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import log from '../utils/log.js';
 import { Sequelize } from 'sequelize';
 import { checkPassword, hashPassword } from '../utils/passwordFunctions.js';
 
-const ACCESS_TOKEN_EXP_TIME_SECONDS = 86400; //Seconds = 24 Hours
-const REFRESH_TOKEN_EXP_TIME_DAYS = '180d'; //Days
+const ACCESS_TOKEN_EXP_TIME_SECONDS = 259200; //Seconds = 3 Days
+const REFRESH_TOKEN_EXP_TIME_DAYS = '365d'; //Days = 1 Year
 
 const logger = log.createLogger('sharetheload-services-user');
 
@@ -87,7 +88,7 @@ class UserService {
             throw new Error("Could not find user with email address: " + emailUsername);
         }
 
-        const temp8CharPassword = Math.random().toString(36).slice(-8);
+        const temp8CharPassword = crypto.randomBytes(6).toString('base64url').slice(0, 8);
 
         const hashedPassword = await hashPassword(temp8CharPassword);
 
@@ -107,24 +108,44 @@ class UserService {
     }
 
     async deleteAccount(userId) {
-        //TODO: Implement this
-        // const user = await this.dbConn.models.user.findByPk(userId);
-        // if (!user) {
-        //     throw new Error("User not found");
-        // }
+        const user = await this.dbConn.models.user.findByPk(userId);
+        if (!user) {
+            throw new Error("User not found");
+        }
 
-        // await user.destroy();
+        // Delete user's loads
+        await this.dbConn.models.load.destroy({
+            where: { user_id: userId }
+        });
 
-        logger.debug("Sending delete account email to " + userId);
+        // Delete user's preferences
+        await this.dbConn.models.preference.destroy({
+            where: { user_id: userId }
+        });
 
-        const email = await this.emailService.sendMail(
-            'brettstrouse@gmail.com',
-            "Delete Account",
-            "general_notification",
-            {
-                userId: userId,
+        // If user owns a group, transfer or delete it
+        const ownedGroup = await this.dbConn.models.group.findOne({
+            where: { owner_id: userId }
+        });
+
+        if (ownedGroup) {
+            const otherMembers = await this.dbConn.models.user.findAll({
+                where: {
+                    group_id: ownedGroup.group_id,
+                    user_id: { [Op.ne]: userId }
+                }
+            });
+
+            if (otherMembers.length > 0) {
+                ownedGroup.owner_id = otherMembers[0].user_id;
+                await ownedGroup.save();
+            } else {
+                await ownedGroup.destroy();
             }
-        );
+        }
+
+        await user.destroy();
+        logger.info("Account deleted for user " + userId);
     }
 
     generateAuthData(user) {

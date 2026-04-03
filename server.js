@@ -20,20 +20,21 @@ import HealthRoutes from './routes/health.js';
 import AccountRoutes from './routes/account.js';
 import GroupRoutes from './routes/group.js';
 import LoadRoutes from './routes/load.js';
+import InsightsRoutes from './routes/insights.js';
 
 const app = express();
-const port = 3006;
+const port = config.app.port;
 
 const logger = log.createLogger("share-the-load-server");
 
 function loggingMiddleware(req, res, next) {
   var logentry = "IP: " + req.ip;
 
-  if (req.body) {
-    logentry += " Body: (" + logentry + ")";
+  if (req.body && Object.keys(req.body).length > 0) {
+    logentry += " Body: (" + JSON.stringify(req.body) + ")";
   }
 
-  if (req.params) {
+  if (req.params && Object.keys(req.params).length > 0) {
     logentry += " Params: (" + JSON.stringify(req.params) + ")";
   }
 
@@ -72,6 +73,7 @@ DbConn.authenticate()
     app.ctx.loadService = new LoadService(DbConn);
 
     app.use(cors());
+    app.use(bodyParser.json());
     app.use(loggingMiddleware);
 
     app.use(function (req, res, next) {
@@ -87,25 +89,21 @@ DbConn.authenticate()
             next();
           })
           .catch(function (err) {
-            logger.error("Invalid authentication header \"" + authHeader + "\"");
-            logger.error("Err decoding token: " + err);
+            logger.error("Failed to decode auth token: " + err.message);
             return res.status(403).send("Unauthorized");
           });
       } else {
-        logger.error("Invalid authentication header \"" + authHeader + "\"");
+        logger.error("Invalid authentication header format");
         return res.status(403).send("Unauthorized");
       }
     });
-
-    // Body parser for custom routes
-    app.use(bodyParser.json());
-
 
     ProfileRoutes(app, DbConn);
     AccountRoutes(app);
     HealthRoutes(app);
     GroupRoutes(app, DbConn);
     LoadRoutes(app, DbConn);
+    InsightsRoutes(app, DbConn);
 
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);

@@ -24,6 +24,11 @@ const model = function (dbConn) {
       avatar_id: {
         type: Sequelize.INTEGER,
       },
+      invite_code: {
+        type: Sequelize.STRING(12),
+        unique: true,
+        allowNull: true,
+      },
       created_at: {
         type: Sequelize.DATE,
       },

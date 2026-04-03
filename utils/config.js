@@ -7,7 +7,7 @@ function get_or_throw(val, err) {
 
 const config = {
     app: {
-        port: process.env.APP_PORT || 3001,
+        port: process.env.APP_PORT || 3006,
         env: process.env.NODE_ENV || 'development'
     },
     client: {

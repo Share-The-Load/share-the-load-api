@@ -91,10 +91,7 @@ export default function (app) {
             .then(decodedToken => {
                 res.status(200).json(decodedToken);
             }).catch(err => {
-                logger.error("Error validating token (" + token + "): " + err);
-                if (err.stack) {
-                    logger.error(err.stack);
-                }
+                logger.error("Error validating token: " + err);
                 res.status(400).send("Error");
             });
     });
@@ -107,10 +104,7 @@ export default function (app) {
                 logger.debug(`Refreshed token for user ${authResult.user.username} (${authResult.user.user_id})`)
             })
             .catch(err => {
-                logger.error("Error refreshing token (" + refreshToken + "): " + err);
-                if (err.stack) {
-                    logger.error(err.stack);
-                }
+                logger.error("Error refreshing token: " + err);
                 res.status(403).send("Unauthorized");
             });
     });
@@ -122,6 +116,7 @@ export default function (app) {
                 user: {
                     userId: authResult.user.user_id,
                     groupId: authResult.user.group_id,
+                    onboardingComplete: authResult.user.onboarding_complete ?? false,
                     token: authResult.token,
                     refreshToken: authResult.refreshToken,
                 },

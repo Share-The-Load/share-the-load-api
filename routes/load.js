@@ -16,9 +16,17 @@ export default function (app, dbConn) {
 
             logger.info(`Scheduling loads for user ${userId}: ${loads}`);
 
-            await loadService.scheduleLoad(userId, loads, urgent);
+            const result = await loadService.scheduleLoad(userId, loads, urgent);
 
-            res.status(200).json({ status: "success" });
+            if (result.failedLoads.length > 0) {
+                res.status(200).json({
+                    status: "partial",
+                    scheduledLoads: result.scheduledLoads,
+                    failedLoads: result.failedLoads,
+                });
+            } else {
+                res.status(200).json({ status: "success" });
+            }
         } catch (error) {
             logger.error(error);
             res.status(400).json({ status: "error" });

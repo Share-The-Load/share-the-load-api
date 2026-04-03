@@ -22,11 +22,23 @@ class LoadService {
                 },
             ],
         });
+
+        if (!profile) {
+            throw new Error("User not found");
+        }
+
+        if (!profile.group_id) {
+            throw new Error("User is not in a group");
+        }
+
+        if (!profile.load_time) {
+            throw new Error("User has no load time configured");
+        }
+
         const groupId = profile.group_id;
         const loadTime = profile.load_time;
 
-
-        let findAllFutureGroupLoads = await this.dbConn.models.load.findAll({
+        let futureGroupLoads = await this.dbConn.models.load.findAll({
             where: {
                 group_id: groupId,
                 end_time: {
@@ -36,12 +48,13 @@ class LoadService {
             raw: true,
         });
 
+        const scheduledLoads = [];
+        const failedLoads = [];
+
         for (const load of loads) {
-            //find a time for each load out to 6 days in advance
-            //if not urgent, start tomorrow
-            //if urgent, start today
+            let scheduled = false;
             for (let daysAhead = urgent ? 0 : 1; daysAhead < 6; daysAhead++) {
-                const findTimeResult = this.findTime(daysAhead, profile.preferences, loadTime, findAllFutureGroupLoads)
+                const findTimeResult = this.findTime(daysAhead, profile.preferences, loadTime, futureGroupLoads);
                 if (findTimeResult) {
                     logger.info(`Scheduling load for user ${userId} in group ${groupId} at ${findTimeResult.start_time} for ${loadTime} minutes`);
                     const newLoad = await this.dbConn.models.load.create({
@@ -51,12 +64,19 @@ class LoadService {
                         start_time: findTimeResult.start_time,
                         end_time: findTimeResult.end_time,
                     });
-                    findAllFutureGroupLoads.push(newLoad.dataValues);
+                    futureGroupLoads.push(newLoad.dataValues);
+                    scheduledLoads.push(load);
+                    scheduled = true;
                     break;
                 }
             }
+            if (!scheduled) {
+                logger.info(`Could not find available time slot for load type: ${load}`);
+                failedLoads.push(load);
+            }
         }
 
+        return { scheduledLoads, failedLoads };
     }
 
     async deleteLoad(userId, loadId) {
@@ -66,6 +86,10 @@ class LoadService {
             },
         });
 
+        if (!load) {
+            throw new Error("Load not found");
+        }
+
         if (load.user_id !== userId) {
             throw new Error("Unauthorized");
         }
@@ -73,45 +97,57 @@ class LoadService {
         await load.destroy();
     }
 
-    findTime(daysAhead, preferences, loadTime, findAllFutureGroupLoads) {
+    findTime(daysAhead, preferences, loadTime, futureGroupLoads) {
         const day = moment().add(daysAhead, 'd').format('ddd');
         const preference = preferences.find(p => p.day === day);
 
-        //find the amount of 30 minute blocks in the preference
-        const startTime = moment(preference.start_time, 'HH:mm:ss').add(daysAhead, 'd')
-        const endTime = moment(preference.end_time, 'HH:mm:ss').add(daysAhead, 'd')
-
-        //find the amount of 30 minute blocks in the preference
-        const blocks = Math.floor(moment.duration(endTime.diff(startTime)).asMinutes() / 30)
-
-        //go through each available block and check if it is available
-        for (let block = 0; block < blocks; block++) {
-
-            //calculate the start and end time of the load
-            const start_time = moment(preference.start_time, 'HH:mm:ss').add(daysAhead, 'd').add(block * 30, 'm').utc()
-            const end_time = moment(preference.start_time, 'HH:mm:ss').add(daysAhead, 'd').add(block * 30, 'm').add(loadTime, 'm').utc()
-
-            //find if the block is taken
-            //go through the future loads and check if the block is taken
-            //need to check if the start time is before the end time of the future load
-            //and if the end time is after the start time of the future load
-            if (findAllFutureGroupLoads.some(load => start_time.isBefore(moment.utc(load.end_time)) && end_time.isAfter(moment.utc(load.start_time)))) {
-                logger.info(`Block taken`, start_time, end_time)
-                continue;
-            }
-            //check if the end time is after the end of the preference
-            if (end_time.isAfter(endTime)) {
-                logger.info('Cant schedule after end of preference', end_time, endTime)
-                continue;
-            }
-            if (start_time.isBefore(moment())) {
-                logger.info('Cant schedule in the past', start_time)
-                continue;
-            }
-            logger.info(`Block available`, start_time, end_time)
-            return { start_time, end_time };
+        if (!preference) {
+            logger.info(`No preference set for ${day}, skipping`);
+            return false;
         }
-        logger.info(`No blocks available for ${day}`)
+
+        const prefStart = moment(preference.start_time, 'HH:mm:ss').add(daysAhead, 'd');
+        const prefEnd = moment(preference.end_time, 'HH:mm:ss').add(daysAhead, 'd');
+
+        const blocks = Math.floor(moment.duration(prefEnd.diff(prefStart)).asMinutes() / 30);
+
+        if (blocks <= 0) {
+            logger.info(`Preference window too small for ${day}`);
+            return false;
+        }
+
+        for (let block = 0; block < blocks; block++) {
+            const start_time = moment(prefStart).add(block * 30, 'm');
+            const end_time = moment(start_time).add(loadTime, 'm');
+
+            // Check if block is in the past
+            if (start_time.isBefore(moment())) {
+                continue;
+            }
+
+            // Check if load extends past the preference window
+            if (end_time.isAfter(prefEnd)) {
+                logger.info(`Remaining window too small for ${day}, moving to next day`);
+                break;
+            }
+
+            // Check for overlap with existing loads (compare in same timezone)
+            const startUtc = moment.utc(start_time);
+            const endUtc = moment.utc(end_time);
+            const hasConflict = futureGroupLoads.some(load =>
+                startUtc.isBefore(moment.utc(load.end_time)) && endUtc.isAfter(moment.utc(load.start_time))
+            );
+
+            if (hasConflict) {
+                logger.info(`Block taken: ${start_time.format()} - ${end_time.format()}`);
+                continue;
+            }
+
+            logger.info(`Block available: ${start_time.format()} - ${end_time.format()}`);
+            return { start_time: start_time.utc().toDate(), end_time: end_time.utc().toDate() };
+        }
+
+        logger.info(`No blocks available for ${day}`);
         return false;
     }
 

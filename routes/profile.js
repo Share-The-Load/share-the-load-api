@@ -49,6 +49,7 @@ export default function (app, dbConn) {
               user_id: p.dataValues.user_id
             }
           }),
+          onboarding_complete: profile.onboarding_complete ?? false,
           memberSince: profile.memberSince,
           loads: totalLoads
         });
@@ -59,66 +60,97 @@ export default function (app, dbConn) {
   });
 
   app.post("/update-load-time", async (req, res) => {
-    if (!req.auth) {
-      return res.status(401).send("Unauthorized");
+    try {
+      if (!req.auth) {
+        return res.status(401).send("Unauthorized");
+      }
+      const userId = req.auth.userId;
+      const { loadTime } = req.body;
+
+      const user = await dbConn.models.user.findByPk(userId);
+
+      user.load_time = loadTime;
+      await user.save();
+
+      res.status(200).json({ status: "success" });
+    } catch (error) {
+      logger.error(error);
+      res.status(400).json({ status: "error" });
     }
-    const userId = req.auth.userId;
-    const { loadTime } = req.body;
-
-    const user = await dbConn.models.user.findByPk(userId);
-
-    user.load_time = loadTime;
-    await user.save();
-
-    res.status(200).json({ status: "success" });
   })
 
   app.post("/update-preference", async (req, res) => {
-    if (!req.auth) {
-      return res.status(401).send("Unauthorized");
+    try {
+      if (!req.auth) {
+        return res.status(401).send("Unauthorized");
+      }
+      const userId = req.auth.userId;
+      const { preference_id, start_time, end_time } = req.body;
+
+      const preference = await dbConn.models.preference.findByPk(preference_id);
+
+      if (!preference) {
+        return res.status(404).send("Preference not found");
+      }
+
+      if (preference.user_id !== userId) {
+        return res.status(403).send("Unauthorized");
+      }
+
+      preference.start_time = start_time;
+      preference.end_time = end_time;
+      await preference.save();
+
+      res.status(200).json({ status: "success" });
+    } catch (error) {
+      logger.error(error);
+      res.status(400).json({ status: "error" });
     }
-    const userId = req.auth.userId;
-    const { preference_id, start_time, end_time } = req.body;
-
-    const preference = await dbConn.models.preference.findByPk(preference_id);
-
-    if (!preference) {
-      return res.status(404).send("Preference not found");
-    }
-
-    if (preference.user_id !== userId) {
-      return res.status(403).send("Unauthorized");
-    }
-
-    preference.start_time = start_time;
-    preference.end_time = end_time;
-    await preference.save();
-
-    res.status(200).json({ status: "success" });
   })
 
+  app.post("/complete-onboarding", async (req, res) => {
+    try {
+      if (!req.auth) {
+        return res.status(401).send("Unauthorized");
+      }
+      const userId = req.auth.userId;
+      const user = await dbConn.models.user.findByPk(userId);
+      user.onboarding_complete = true;
+      await user.save();
+      res.status(200).json({ status: "success" });
+    } catch (error) {
+      logger.error(error);
+      res.status(400).json({ status: "error" });
+    }
+  });
+
   app.post("/edit-profile", async (req, res) => {
-    if (!req.auth) {
-      return res.status(401).send("Unauthorized");
+    try {
+      if (!req.auth) {
+        return res.status(401).send("Unauthorized");
+      }
+      const userId = req.auth.userId;
+      const { email, avatar, password } = req.body;
+
+      const user = await dbConn.models.user.findByPk(userId);
+
+      if (password) {
+        const hashedPassword = await hashPassword(password);
+        user.password = hashedPassword;
+      }
+
+      if (email !== undefined) user.email = email;
+      if (avatar !== undefined) user.avatar_id = avatar;
+
+      await user.save();
+
+      logger.info(`Updated profile for user ${userId}`);
+
+      res.status(200).json({ status: "success" });
+    } catch (error) {
+      logger.error(error);
+      res.status(400).json({ status: "error" });
     }
-    const userId = req.auth.userId;
-    const { email, avatar, password } = req.body;
-
-    const user = await dbConn.models.user.findByPk(userId);
-
-    if (password) {
-      const hashedPassword = await hashPassword(password);
-      user.password = hashedPassword;
-    }
-
-    user.email = email;
-    user.avatar_id = avatar;
-
-    await user.save();
-
-    logger.info(`Updated profile for user ${userId}`);
-
-    res.status(200).json({ status: "success" });
   })
 
 }
