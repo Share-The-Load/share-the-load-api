@@ -21,6 +21,7 @@ import AccountRoutes from './routes/account.js';
 import GroupRoutes from './routes/group.js';
 import LoadRoutes from './routes/load.js';
 import InsightsRoutes from './routes/insights.js';
+import InviteRoutes from './routes/invite.js';
 
 const app = express();
 const port = config.app.port;
@@ -75,6 +76,12 @@ DbConn.authenticate()
     app.use(cors());
     app.use(bodyParser.json());
     app.use(loggingMiddleware);
+
+    // Static files for OG image etc.
+    app.use('/invite', express.static('public/invite'));
+
+    // Invite landing page (public, no auth required — must be before auth middleware)
+    InviteRoutes(app, DbConn);
 
     app.use(function (req, res, next) {
       var authHeader = req.get('Authorization');
