@@ -139,7 +139,7 @@ export default function (app, dbConn) {
         user.password = hashedPassword;
       }
 
-      if (email !== undefined) user.email = email;
+      if (email) user.email = email;
       if (avatar !== undefined) user.avatar_id = avatar;
 
       await user.save();
